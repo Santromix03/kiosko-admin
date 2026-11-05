@@ -1,0 +1,22 @@
+# Secretos
+.env
+.env.*
+*.pem
+
+# Dependencias
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Editor y sistema
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · Kiosko</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- LOGIN -->
+  <section id="login-view" class="hidden">
+    <form id="login-form" class="card login-card">
+      <h1>Panel de administración</h1>
+      <label>Correo <input type="email" id="login-email" required></label>
+      <label>Contraseña <input type="password" id="login-password" required></label>
+      <button type="submit" class="btn">Entrar</button>
+      <p id="login-error" class="form-error"></p>
+    </form>
+  </section>
+
+  <!-- APP -->
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <strong>Kiosko · Admin</strong>
+      <nav id="nav">
+        <button data-view="categories">Categorías</button>
+        <button data-view="products">Productos</button>
+        <!-- TODO: Ingredientes y stock (se agrega en el siguiente paso) -->
+        <!-- TODO (grupo): Ventas del día -->
+      </nav>
+      <button id="logout" class="btn-outline">Salir</button>
+    </header>
+    <main>
+      <section id="view-categories"></section>
+      <section id="view-products" class="hidden"></section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

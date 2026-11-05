@@ -1,0 +1,41 @@
+:root { --red: #C21A1F; --bg: #F7F5F3; --text: #2B2B2B; --border: #E8C9CB; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+.hidden { display: none !important; }
+
+.topbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 20px; background: var(--red); color: #fff; }
+.topbar nav { display: flex; gap: 8px; flex: 1; }
+.topbar nav button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); border-radius: 8px; padding: 8px 14px; cursor: pointer; font: inherit; }
+.topbar nav button.active { background: #fff; color: var(--red); }
+.topbar .btn-outline { border-color: #fff; }
+
+main { max-width: 1000px; margin: 0 auto; padding: 20px; }
+h2 { color: var(--red); }
+.card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+
+label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
+input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font: inherit; }
+.form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.form-grid .wide { grid-column: 1 / -1; }
+.check { flex-direction: row; align-items: center; gap: 8px; }
+.check input { width: auto; }
+
+.btn, .btn-outline, .btn-danger { padding: 10px 16px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; border: 1px solid var(--red); }
+.btn { background: var(--red); color: #fff; }
+.btn:disabled { opacity: .6; cursor: wait; }
+.btn-outline { background: #fff; color: var(--red); }
+.btn-danger { background: #fff; color: #b00020; border-color: #b00020; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.actions { display: flex; gap: 8px; }
+.thumb { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; display: block; }
+
+.login-card { max-width: 380px; margin: 12vh auto; display: flex; flex-direction: column; gap: 14px; }
+.login-card h1 { margin: 0; color: var(--red); font-size: 24px; }
+.form-error { color: #b00020; min-height: 1em; margin: 0; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2B2B2B; color: #fff; padding: 12px 18px; border-radius: 10px; z-index: 10; }
+.toast.err { background: #b00020; }
