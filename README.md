@@ -17,3 +17,7 @@ Boceto funcional (HTML/CSS/JS puro + Supabase). Ver y editar categorías y produ
 ## Reglas
 - Nunca poner la clave `service_role` en el código.
 - Todo texto de la base de datos que se meta en HTML pasa por `esc()` (js/utils.js).
+
+  ## Cómo correrlo
+  Usa `python serve.py` en lugar de `python -m http.server` (desactiva la caché del navegador
+  mientras desarrollan). Abre http://localhost:5500

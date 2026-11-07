@@ -1,10 +1,9 @@
 import { supabase } from './supabase.js';
 import * as categories from './categories.js';
 import * as products from './products.js';
+  import * as addons from './addons.js';
 
-// Para agregar una sección: crea js/<nombre>.js con un export `load()`,
-// agrégala aquí, y suma su <section id="view-<nombre>"> y su botón en index.html.
-const views = { categories, products };
+  const views = { categories, products, addons };
 
 const loginView = document.getElementById('login-view');
 const appView = document.getElementById('app-view');
@@ -21,6 +20,10 @@ function showApp() {
 }
 
 function openView(name) {
+  if (!views[name]) {
+    console.error('Vista no registrada:', name, '| vistas disponibles:', Object.keys(views));
+    return;
+  }
   document.querySelectorAll('#nav button').forEach(b =>
     b.classList.toggle('active', b.dataset.view === name));
   for (const key of Object.keys(views)) {
