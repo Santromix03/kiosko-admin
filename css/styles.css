@@ -46,3 +46,11 @@ th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; vertica
 .checks-group { flex-basis: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; margin: 0; }
 .checks-group legend { font-size: 14px; font-weight: 600; padding: 0 6px; }
 .checks-group .options { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.recipe-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.recipe-row select { flex: 2; min-width: 160px; }
+.recipe-row input { flex: 1; min-width: 100px; }
+.recipe-row .unit { min-width: 36px; font-weight: 600; color: var(--red); }
+.hint { margin: 10px 0 8px; font-size: 14px; color: #666; }
+.refill { display: flex; gap: 6px; align-items: center; }
+.refill input { width: 110px; padding: 6px 8px; }
+.stock-val.out { color: #b00020; font-weight: 700; }

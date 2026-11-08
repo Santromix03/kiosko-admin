@@ -1,9 +1,10 @@
 import { supabase } from './supabase.js';
 import * as categories from './categories.js';
 import * as products from './products.js';
-  import * as addons from './addons.js';
+import * as addons from './addons.js';
+import * as ingredients from './ingredients.js';
 
-  const views = { categories, products, addons };
+const views = { categories, products, ingredients, addons };
 
 const loginView = document.getElementById('login-view');
 const appView = document.getElementById('app-view');
