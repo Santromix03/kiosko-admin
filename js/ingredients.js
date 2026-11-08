@@ -3,9 +3,9 @@ import { esc, toast } from './utils.js';
 
 const root = document.getElementById('view-ingredients');
 const UNITS = [
-  ['unidad', 'Por unidad (ej. panes, huevos)'],
-  ['g', 'Por gramos (ej. café, carne)'],
-  ['ml', 'Por mililitros (ej. leche)'],
+  ['unidad', 'Por unidad (ej. panes, huevos, envases)'],
+  ['g', 'Por gramos (ej. carne, café, queso)'],
+  ['ml', 'Por mililitros (ej. leche, jarabes, salsas)'],
 ];
 let items = [];
 let editingId = null;
@@ -24,39 +24,51 @@ export async function load() {
 function render() {
   const g = items.find(x => x.id === editingId);
   root.innerHTML = `
-    <h2>Ingredientes</h2>
-    <p class="hint">Aquí se rellena el stock. En cada producto se define cuánto lleva de cada ingrediente.</p>
+    <h2>Materia Prima e Ingredientes</h2>
+    <p class="hint">Control de insumos base para las recetas. Cuando se vende un producto con receta, se descuentan automáticamente.</p>
+
     <form id="ing-form" class="card form-row">
-      <label>Nombre <input name="name" required value="${esc(g?.name)}"></label>
-      <label>Se mide
+      <div class="card-header-bar" style="width: 100%;">
+        <span class="card-title">${g ? '✏️ Editando ingrediente' : '➕ Registrar nuevo insumo / ingrediente'}</span>
+        ${g ? '<span class="badge badge-warning">Modo edición</span>' : ''}
+      </div>
+
+      <label>Nombre del ingrediente <input name="name" required value="${esc(g?.name)}" placeholder="Ej: Carne de res, Pan brioche..."></label>
+      <label>Unidad de medida
         <select name="unit" ${g ? 'disabled' : ''}>
           ${UNITS.map(([v, label]) => `<option value="${v}" ${g?.unit === v ? 'selected' : ''}>${label}</option>`).join('')}
         </select>
       </label>
-      <label>Stock actual <input name="stock" type="number" min="0" step="any" required value="${g?.stock ?? 0}"></label>
-      <button class="btn" type="submit">${g ? 'Guardar cambios' : 'Agregar ingrediente'}</button>
-      ${g ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      <label>Stock actual en bodega <input name="stock" type="number" min="0" step="any" required value="${g?.stock ?? 0}"></label>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn" type="submit">${g ? 'Guardar cambios' : 'Agregar ingrediente'}</button>
+        ${g ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      </div>
     </form>
-    ${g ? '<p class="hint">La unidad no se puede cambiar, porque las recetas dependen de ella. Si te equivocaste, borra el ingrediente y créalo de nuevo.</p>' : ''}
+    ${g ? '<p class="hint" style="color: var(--text-muted); font-size: 13px;">💡 La unidad de medida no se puede modificar porque las recetas dependen de ella. Si necesitas cambiarla, elimina el ingrediente y créalo nuevamente.</p>' : ''}
 
     <div class="card table-wrap">
       <table>
-        <thead><tr><th>Ingrediente</th><th>Stock</th><th>Reponer</th><th></th></tr></thead>
+        <thead><tr><th>Ingrediente</th><th>Stock disponible</th><th>Ajuste / Reposición rápida</th><th style="text-align: right;">Acciones</th></tr></thead>
         <tbody>
-          ${items.map(x => `
+          ${items.length === 0 ? '<tr><td colspan="4" class="empty-state">No hay ingredientes registrados. Registra el primero arriba.</td></tr>' : items.map(x => `
             <tr>
-              <td>${esc(x.name)}</td>
-              <td class="stock-val ${Number(x.stock) === 0 ? 'out' : ''}" data-stock="${x.id}">${fmt(x.stock)} ${unitShort(x.unit)}</td>
+              <td><strong>${esc(x.name)}</strong></td>
+              <td>
+                <span class="stock-val ${Number(x.stock) === 0 ? 'out' : ''}" data-stock="${x.id}">
+                  ${fmt(x.stock)} ${unitShort(x.unit)}
+                </span>
+              </td>
               <td>
                 <div class="refill">
-                  <input type="number" min="0" step="any" placeholder="Cantidad" data-refill="${x.id}">
-                  <button class="btn-outline btn-sm" data-action="add" data-id="${x.id}">+ Sumar</button>
-                  <button class="btn-outline btn-sm" data-action="sub" data-id="${x.id}">− Restar</button>
+                  <input type="number" min="0" step="any" placeholder="Cant." data-refill="${x.id}">
+                  <button type="button" class="btn-outline btn-sm" data-action="add" data-id="${x.id}" title="Sumar inventario">+ Sumar</button>
+                  <button type="button" class="btn-outline btn-sm" data-action="sub" data-id="${x.id}" title="Restar inventario">− Restar</button>
                 </div>
               </td>
               <td class="actions">
-                <button class="btn-outline" data-action="edit" data-id="${x.id}">Editar</button>
-                <button class="btn-danger" data-action="delete" data-id="${x.id}">Borrar</button>
+                <button class="btn-outline btn-sm" data-action="edit" data-id="${x.id}">Editar</button>
+                <button class="btn-danger btn-sm" data-action="delete" data-id="${x.id}">Borrar</button>
               </td>
             </tr>`).join('')}
         </tbody>
@@ -71,7 +83,7 @@ root.addEventListener('submit', async e => {
   const current = items.find(x => x.id === editingId);
   const row = {
     name: f.get('name').trim(),
-    unit: current ? current.unit : f.get('unit'),   // el select deshabilitado no se envía
+    unit: current ? current.unit : f.get('unit'),
     stock: Number(f.get('stock')) || 0,
   };
   const { error } = editingId

@@ -44,27 +44,43 @@ function recipeRow(ingredientId = null, quantity = '') {
       </select>
       <input name="recipe_qty" type="number" min="0" step="any" placeholder="Cantidad" value="${quantity}">
       <span class="unit">${esc(unitShort(current?.unit ?? ''))}</span>
-      <button type="button" class="btn-danger btn-sm" data-action="remove-row">✕</button>
+      <button type="button" class="btn-danger btn-sm" data-action="remove-row" title="Quitar ingrediente">✕</button>
     </div>`;
 }
 
 function stockLabel(p) {
-  if (p.stock_mode === 'direct') return `${p.stock} und`;
+  if (p.stock_mode === 'direct') {
+    const isOut = (p.stock ?? 0) <= 0;
+    return `<span class="badge ${isOut ? 'badge-danger' : 'badge-info'}">${p.stock} und</span>`;
+  }
   if (p.stock_mode === 'recipe') {
     const rows = recipes.get(p.id) ?? [];
-    if (!rows.length) return 'Sin receta';
+    if (!rows.length) return '<span class="badge badge-warning">Sin receta</span>';
     const can = rows.map(r => {
       const ing = ingredients.find(i => i.id === r.ingredient_id);
       return ing ? Math.floor(ing.stock / r.quantity) : 0;
     });
-    return `${Math.min(...can)} (por ingredientes)`;
+    const total = Math.min(...can);
+    return `<span class="badge ${total <= 0 ? 'badge-danger' : 'badge-success'}">${total} disp. (receta)</span>`;
   }
-  return 'Sin control';
+  return '<span class="badge badge-neutral">Ilimitado</span>';
 }
 
 function render() {
   if (!categories.length) {
-    root.innerHTML = '<h2>Productos</h2><p>Primero crea al menos una categoría.</p>';
+    root.innerHTML = `
+      <h2>Productos</h2>
+      <div class="alert-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <div>
+          <strong>No hay categorías creadas</strong>
+          <p style="margin: 2px 0 0; font-size: 13px;">Primero debes crear al menos una categoría para poder asociar tus productos.</p>
+        </div>
+      </div>`;
     return;
   }
   const p = items.find(x => x.id === editingId);
@@ -79,63 +95,72 @@ function render() {
   root.innerHTML = `
     <h2>Productos</h2>
     <form id="prod-form" class="card form-grid">
+      <div class="card-header-bar wide">
+        <span class="card-title">${p ? '✏️ Editando: ' + esc(p.name) : '➕ Agregar nuevo producto'}</span>
+        ${p ? '<span class="badge badge-warning">Modo edición</span>' : ''}
+      </div>
+
       <label>Categoría
         <select name="category_id" required>
           ${categories.map(c => `<option value="${c.id}" ${p?.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select>
       </label>
-      <label>Nombre <input name="name" required value="${esc(p?.name)}"></label>
-      <label>Precio (COP) <input name="price" type="number" min="0" step="100" required value="${p?.price ?? ''}"></label>
-      <label>Orden <input name="sort_order" type="number" value="${p?.sort_order ?? 0}"></label>
-      <label class="wide">Descripción <textarea name="description" rows="2">${esc(p?.description)}</textarea></label>
-      <label class="wide">Foto ${p?.image_url ? '(sube otra para reemplazarla)' : ''}
-        ${p?.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="">` : ''}
+      <label>Nombre del producto <input name="name" required value="${esc(p?.name)}" placeholder="Ej: Hamburguesa Clásica"></label>
+      <label>Precio (COP) <input name="price" type="number" min="0" step="100" required value="${p?.price ?? ''}" placeholder="Ej: 18000"></label>
+      <label>Orden en el catálogo <input name="sort_order" type="number" value="${p?.sort_order ?? 0}"></label>
+
+      <label class="wide">Descripción <textarea name="description" rows="2" placeholder="Detalles o ingredientes visibles para el cliente...">${esc(p?.description)}</textarea></label>
+
+      <label class="wide">Fotografía del producto ${p?.image_url ? '<small style="color:var(--text-muted);">(sube otra para reemplazar la actual)</small>' : ''}
+        ${p?.image_url ? `<div style="margin: 6px 0;"><img class="thumb" style="width: 80px; height: 80px;" src="${esc(p.image_url)}" alt=""></div>` : ''}
         <input name="image" type="file" accept="image/*">
       </label>
 
       <fieldset class="checks-group wide">
-        <legend>Control de stock</legend>
+        <legend>Control y método de inventario (Stock)</legend>
         <div class="options">
-          <label class="check"><input type="radio" name="stock_mode" value="none" ${mode === 'none' ? 'checked' : ''}> Sin control</label>
-          <label class="check"><input type="radio" name="stock_mode" value="direct" ${mode === 'direct' ? 'checked' : ''}> Stock directo (ej. gaseosa)</label>
-          <label class="check"><input type="radio" name="stock_mode" value="recipe" ${mode === 'recipe' ? 'checked' : ''}> Con ingredientes (ej. hamburguesa, latte)</label>
+          <label class="check"><input type="radio" name="stock_mode" value="none" ${mode === 'none' ? 'checked' : ''}> Sin control (siempre disponible)</label>
+          <label class="check"><input type="radio" name="stock_mode" value="direct" ${mode === 'direct' ? 'checked' : ''}> Stock directo (ej. botellas, latas)</label>
+          <label class="check"><input type="radio" name="stock_mode" value="recipe" ${mode === 'recipe' ? 'checked' : ''}> Con receta / ingredientes (ej. hamburguesa, café)</label>
         </div>
 
-        <div id="stock-direct" class="${mode === 'direct' ? '' : 'hidden'}">
-          <label>Unidades en stock <input name="stock" type="number" min="0" step="1" value="${p?.stock ?? 0}"></label>
+        <div id="stock-direct" class="${mode === 'direct' ? '' : 'hidden'}" style="margin-top: 12px;">
+          <label>Unidades físicas disponibles <input name="stock" type="number" min="0" step="1" value="${p?.stock ?? 0}" style="max-width: 200px;"></label>
         </div>
 
-        <div id="stock-recipe" class="${mode === 'recipe' ? '' : 'hidden'}">
+        <div id="stock-recipe" class="${mode === 'recipe' ? '' : 'hidden'}" style="margin-top: 12px;">
           ${ingredients.length ? `
-            <p class="hint">Qué lleva UNA unidad de este producto:</p>
+            <p class="hint">Qué porciones de ingredientes consume 1 unidad de este producto:</p>
             <div id="recipe-rows">${rowsHtml}</div>
-            <button type="button" class="btn-outline btn-sm" data-action="add-row">+ Agregar ingrediente</button>`
-          : '<p class="hint">Primero crea ingredientes en la sección Ingredientes.</p>'}
+            <button type="button" class="btn-outline btn-sm" data-action="add-row">+ Agregar ingrediente a la receta</button>`
+          : '<p class="hint" style="color: var(--danger-text);">⚠️ No hay ingredientes registrados. Crea ingredientes en la pestaña "Ingredientes" primero.</p>'}
         </div>
       </fieldset>
 
-      <label class="check"><input name="available" type="checkbox" ${(p?.available ?? true) ? 'checked' : ''}> Visible en el menú</label>
-      <div class="wide">
-        <button class="btn" type="submit">${p ? 'Guardar cambios' : 'Agregar producto'}</button>
-        ${p ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      <div class="wide" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-top: 6px;">
+        <label class="check"><input name="available" type="checkbox" ${(p?.available ?? true) ? 'checked' : ''}> Visible en el menú del kiosko</label>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" type="submit">${p ? 'Guardar cambios' : 'Agregar producto'}</button>
+          ${p ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+        </div>
       </div>
     </form>
 
     <div class="card table-wrap">
       <table>
-        <thead><tr><th>Foto</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Visible</th><th></th></tr></thead>
+        <thead><tr><th>Foto</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th style="text-align: right;">Acciones</th></tr></thead>
         <tbody>
-          ${items.map(x => `
+          ${items.length === 0 ? '<tr><td colspan="7" class="empty-state">No hay productos registrados aún. Agrega el primero arriba.</td></tr>' : items.map(x => `
             <tr>
-              <td>${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="">` : '—'}</td>
-              <td>${esc(x.name)}</td>
-              <td>${esc(catName(x.category_id))}</td>
-              <td>${formatPrice(x.price)}</td>
-              <td>${esc(stockLabel(x))}</td>
-              <td>${x.available ? 'Sí' : 'No'}</td>
+              <td>${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="">` : '<div class="thumb-placeholder">📷</div>'}</td>
+              <td><strong>${esc(x.name)}</strong></td>
+              <td><span class="badge badge-neutral">${esc(catName(x.category_id))}</span></td>
+              <td><span class="price-val">${formatPrice(x.price)}</span></td>
+              <td>${stockLabel(x)}</td>
+              <td><span class="badge ${x.available ? 'badge-success' : 'badge-neutral'}">${x.available ? '● Visible' : '○ Oculto'}</span></td>
               <td class="actions">
-                <button class="btn-outline" data-action="edit" data-id="${x.id}">Editar</button>
-                <button class="btn-danger" data-action="delete" data-id="${x.id}">Borrar</button>
+                <button class="btn-outline btn-sm" data-action="edit" data-id="${x.id}">Editar</button>
+                <button class="btn-danger btn-sm" data-action="delete" data-id="${x.id}">Borrar</button>
               </td>
             </tr>`).join('')}
         </tbody>
@@ -242,7 +267,6 @@ root.addEventListener('submit', async e => {
     }
 
     // Sincroniza la receta (si el modo no es "recipe", queda vacía)
-    // TODO (grupo): hacerlo en una sola transacción con una función SQL.
     const del = await supabase.from('recipe_items').delete().eq('product_id', productId);
     if (del.error) throw del.error;
     if (recipeRows.length) {

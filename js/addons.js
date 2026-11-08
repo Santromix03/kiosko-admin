@@ -38,17 +38,22 @@ function render() {
   const selected = links.get(a?.id) ?? new Set();
 
   root.innerHTML = `
-    <h2>Adiciones</h2>
+    <h2>Adiciones y Extras</h2>
     <form id="addon-form" class="card form-row">
-      <label>Nombre <input name="name" required value="${esc(a?.name)}"></label>
-      <label>Precio (COP) <input name="price" type="number" min="0" step="100" required value="${a?.price ?? ''}"></label>
-      <label>Stock <input name="stock" type="number" min="0" step="1" required value="${a?.stock ?? 0}"></label>
-      <label class="check"><input name="active" type="checkbox" ${(a?.active ?? true) ? 'checked' : ''}> Visible</label>
+      <div class="card-header-bar" style="width: 100%;">
+        <span class="card-title">${a ? '✏️ Editando adición' : '➕ Nueva adición / ingrediente extra'}</span>
+        ${a ? '<span class="badge badge-warning">Modo edición</span>' : ''}
+      </div>
 
-      <fieldset class="checks-group">
+      <label>Nombre de la adición <input name="name" required value="${esc(a?.name)}" placeholder="Ej: Tocineta extra, Queso cheddar..."></label>
+      <label>Precio adicional (COP) <input name="price" type="number" min="0" step="100" required value="${a?.price ?? ''}" placeholder="Ej: 3000"></label>
+      <label>Stock disponible <input name="stock" type="number" min="0" step="1" required value="${a?.stock ?? 0}"></label>
+      <label class="check"><input name="active" type="checkbox" ${(a?.active ?? true) ? 'checked' : ''}> Visible en kiosko</label>
+
+      <fieldset class="checks-group" style="width: 100%;">
         <legend>¿En qué categorías se ofrece?</legend>
         <div class="options">
-          ${categories.map(c => `
+          ${categories.length === 0 ? '<p class="hint">No hay categorías creadas aún.</p>' : categories.map(c => `
             <label class="check">
               <input type="checkbox" name="categories" value="${c.id}" ${selected.has(c.id) ? 'checked' : ''}>
               ${esc(c.name)}
@@ -56,30 +61,32 @@ function render() {
         </div>
       </fieldset>
 
-      <button class="btn" type="submit">${a ? 'Guardar cambios' : 'Agregar adición'}</button>
-      ${a ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      <div style="display: flex; gap: 8px; margin-top: 6px;">
+        <button class="btn" type="submit">${a ? 'Guardar cambios' : 'Agregar adición'}</button>
+        ${a ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      </div>
     </form>
 
     <div class="card table-wrap">
       <table>
-        <thead><tr><th>Nombre</th><th>Categorías</th><th>Precio</th><th>Stock</th><th>Visible</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Categorías permitidas</th><th>Precio</th><th>Stock rápido</th><th>Estado</th><th style="text-align: right;">Acciones</th></tr></thead>
         <tbody>
-          ${items.map(x => `
+          ${items.length === 0 ? '<tr><td colspan="6" class="empty-state">No hay adiciones creadas todavía.</td></tr>' : items.map(x => `
             <tr>
-              <td>${esc(x.name)}</td>
-              <td>${esc(categoryNames(x.id))}</td>
-              <td>${formatPrice(x.price)}</td>
+              <td><strong>${esc(x.name)}</strong></td>
+              <td><span class="badge badge-neutral">${esc(categoryNames(x.id))}</span></td>
+              <td><span class="price-val">${formatPrice(x.price)}</span></td>
               <td>
                 <div class="stock-ctl ${x.stock === 0 ? 'out' : ''}">
-                  <button class="btn-outline btn-sm" data-action="minus" data-id="${x.id}">−</button>
+                  <button type="button" class="btn-outline btn-sm" data-action="minus" data-id="${x.id}" title="Restar 1">−</button>
                   <strong>${x.stock}</strong>
-                  <button class="btn-outline btn-sm" data-action="plus" data-id="${x.id}">+</button>
+                  <button type="button" class="btn-outline btn-sm" data-action="plus" data-id="${x.id}" title="Sumar 1">+</button>
                 </div>
               </td>
-              <td>${x.active ? 'Sí' : 'No'}</td>
+              <td><span class="badge ${x.active ? 'badge-success' : 'badge-neutral'}">${x.active ? '● Visible' : '○ Oculto'}</span></td>
               <td class="actions">
-                <button class="btn-outline" data-action="edit" data-id="${x.id}">Editar</button>
-                <button class="btn-danger" data-action="delete" data-id="${x.id}">Borrar</button>
+                <button class="btn-outline btn-sm" data-action="edit" data-id="${x.id}">Editar</button>
+                <button class="btn-danger btn-sm" data-action="delete" data-id="${x.id}">Borrar</button>
               </td>
             </tr>`).join('')}
         </tbody>
@@ -118,8 +125,6 @@ root.addEventListener('submit', async e => {
     addonId = data.id;
   }
 
-  // Sincroniza las categorías.
-  // TODO (grupo): hacerlo en una sola transacción con una función SQL.
   const del = await supabase.from('addon_categories').delete().eq('addon_id', addonId);
   if (del.error) return toast(del.error.message, true);
   const ins = await supabase.from('addon_categories')

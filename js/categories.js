@@ -18,24 +18,30 @@ function render() {
   root.innerHTML = `
     <h2>Categorías</h2>
     <form id="cat-form" class="card form-row">
-      <label>Nombre <input name="name" required value="${esc(c?.name)}"></label>
-      <label>Orden <input name="sort_order" type="number" value="${c?.sort_order ?? items.length + 1}"></label>
-      <label class="check"><input name="active" type="checkbox" ${(c?.active ?? true) ? 'checked' : ''}> Visible</label>
-      <button class="btn" type="submit">${c ? 'Guardar cambios' : 'Agregar categoría'}</button>
-      ${c ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      <div class="card-header-bar" style="width: 100%;">
+        <span class="card-title">${c ? '✏️ Editando categoría' : '➕ Nueva categoría'}</span>
+        ${c ? '<span class="badge badge-warning">Modo edición</span>' : ''}
+      </div>
+      <label>Nombre <input name="name" required value="${esc(c?.name)}" placeholder="Ej: Bebidas, Hamburguesas..."></label>
+      <label>Orden en el menú <input name="sort_order" type="number" value="${c?.sort_order ?? items.length + 1}"></label>
+      <label class="check"><input name="active" type="checkbox" ${(c?.active ?? true) ? 'checked' : ''}> Visible en el kiosko</label>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn" type="submit">${c ? 'Guardar cambios' : 'Agregar categoría'}</button>
+        ${c ? '<button class="btn-outline" type="button" data-action="cancel">Cancelar</button>' : ''}
+      </div>
     </form>
     <div class="card table-wrap">
       <table>
-        <thead><tr><th>Orden</th><th>Nombre</th><th>Visible</th><th></th></tr></thead>
+        <thead><tr><th>Orden</th><th>Nombre</th><th>Estado</th><th style="text-align: right;">Acciones</th></tr></thead>
         <tbody>
-          ${items.map(x => `
+          ${items.length === 0 ? '<tr><td colspan="4" class="empty-state">No hay categorías registradas aún. Agrega la primera arriba.</td></tr>' : items.map(x => `
             <tr>
-              <td>${x.sort_order}</td>
-              <td>${esc(x.name)}</td>
-              <td>${x.active ? 'Sí' : 'No'}</td>
+              <td><strong>#${x.sort_order}</strong></td>
+              <td><strong>${esc(x.name)}</strong></td>
+              <td><span class="badge ${x.active ? 'badge-success' : 'badge-neutral'}">${x.active ? '● Visible' : '○ Oculto'}</span></td>
               <td class="actions">
-                <button class="btn-outline" data-action="edit" data-id="${x.id}">Editar</button>
-                <button class="btn-danger" data-action="delete" data-id="${x.id}">Borrar</button>
+                <button class="btn-outline btn-sm" data-action="edit" data-id="${x.id}">Editar</button>
+                <button class="btn-danger btn-sm" data-action="delete" data-id="${x.id}">Borrar</button>
               </td>
             </tr>`).join('')}
         </tbody>

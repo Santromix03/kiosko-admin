@@ -42,9 +42,21 @@ document.getElementById('login-form').addEventListener('submit', async e => {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const errorEl = document.getElementById('login-error');
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+  }
+  errorEl.textContent = '';
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  document.getElementById('login-error').textContent =
-    error ? 'Correo o contraseña incorrectos' : '';
+  if (error) {
+    errorEl.textContent = 'Correo o contraseña incorrectos';
+  }
+  if (submitBtn) {
+    submitBtn.disabled = false;
+  }
 });
 
 document.getElementById('logout').addEventListener('click', () => supabase.auth.signOut());
