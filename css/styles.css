@@ -43,3 +43,6 @@ th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; vertica
 .stock-ctl { display: flex; align-items: center; gap: 10px; }
 .stock-ctl strong { min-width: 28px; text-align: center; }
 .stock-ctl.out strong { color: #b00020; }
+.checks-group { flex-basis: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; margin: 0; }
+.checks-group legend { font-size: 14px; font-weight: 600; padding: 0 6px; }
+.checks-group .options { display: flex; flex-wrap: wrap; gap: 8px 18px; }
