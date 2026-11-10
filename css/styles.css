@@ -926,54 +926,254 @@ tr:hover td {
   margin-bottom: 20px;
 }
 
-@media (max-width: 1024px) {
-  :root {
-    --layout-padding-x: 20px;
-  }
+/* =====================================================================
+   RESPONSIVE · adapta el panel a cualquier pantalla
+   (celular, tablet, laptop y pantallas grandes)
+   ===================================================================== */
 
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+img { max-width: 100%; }
+.login-wrapper { min-height: 100dvh; }
+
+/* ---------- Pantallas muy grandes ---------- */
+@media (min-width: 1800px) {
+  :root { --layout-max-width: 1680px; --layout-padding-x: 40px; }
+}
+
+/* ---------- Laptops pequeñas y tablets (≤ 1100px) ---------- */
+@media (max-width: 1100px) {
+  :root { --layout-padding-x: 20px; }
+
+  /* Cabecera en 2 filas: marca + salir arriba, pestañas abajo */
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand actions"
+      "nav   nav";
+    gap: 12px 16px;
+    padding: 12px var(--layout-padding-x);
+  }
+  .brand { grid-area: brand; min-width: 0; }
+  .topbar-actions { grid-area: actions; }
+  .nav-tabs {
+    grid-area: nav;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
+    flex: 1 0 auto;
+    justify-content: center;
     padding: 10px 16px;
     font-size: 14px;
   }
+
+  .card { padding: 24px 24px; }
+  th, td { padding: 14px 16px; }
+  .form-grid { gap: 18px; }
 }
 
+/* ---------- Tablets verticales y celulares grandes (≤ 768px) ---------- */
 @media (max-width: 768px) {
-  :root {
-    --layout-padding-x: 14px;
+  :root { --layout-padding-x: 14px; }
+
+  .main-content, main { padding: 20px var(--layout-padding-x) 40px; }
+  h2 { font-size: 22px; margin-bottom: 16px; }
+  .hint { margin: -6px 0 16px; font-size: 14px; }
+
+  .card { padding: 18px 16px; margin-bottom: 20px; border-radius: var(--radius-md); }
+  .card-header-bar { flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; }
+  .card-title { font-size: 16px; }
+
+  /* Formularios en una sola columna */
+  .form-row { flex-direction: column; align-items: stretch; gap: 16px; }
+  .form-row > label:not(.check) { flex: 0 0 auto; }
+  .form-row .checks-group { flex-basis: auto; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .form-grid > *, .form-row > * { min-width: 0; }
+  fieldset { min-width: 0; }
+  .checks-group { padding: 14px 14px; }
+  .checks-group .options { flex-direction: column; gap: 10px; }
+
+  /* 16px evita el zoom automático de iOS al enfocar un campo */
+  input, select, textarea { font-size: 16px; padding: 12px 14px; max-width: 100%; }
+  input[type="file"] { font-size: 14px; }
+  .check input { width: 22px; height: 22px; }
+
+  /* Botones de enviar / cancelar ocupan todo el ancho */
+  .form-row > div:last-child .btn,
+  .form-row > div:last-child .btn-outline,
+  .form-grid > div.wide > div .btn,
+  .form-grid > div.wide > div .btn-outline { flex: 1; }
+  .form-grid > div.wide > div { width: 100%; }
+  .btn, .btn-outline, .btn-danger { padding: 13px 20px; }
+
+  /* Filas de receta apiladas */
+  .recipe-row { padding: 12px; gap: 10px; }
+  .recipe-row select { flex: 1 1 100%; min-width: 0; }
+  .recipe-row input { flex: 1 1 120px; min-width: 0; }
+  .recipe-row .unit { min-width: 44px; }
+
+  /* Controles de stock cómodos para el dedo */
+  .btn-sm { padding: 9px 14px; min-height: 40px; }
+  .stock-ctl button { width: 38px; height: 38px; }
+  .refill { flex-wrap: wrap; }
+  .refill input { width: 100%; flex: 1 1 100%; font-size: 16px; }
+  .refill .btn-sm { flex: 1; }
+
+  /* Aviso (toast) a lo ancho de la pantalla */
+  .toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+
+  .login-wrapper { padding: 24px 16px; }
+  .login-card { padding: 26px 20px; }
+  .brand-title { font-size: 25px; }
+}
+
+/* ---------- Tablas → tarjetas apiladas (≤ 950px) ---------- */
+@media (max-width: 950px) {
+  .table-wrap {
+    overflow: visible;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .table-wrap:hover { box-shadow: none; border-color: transparent; }
+
+  .table-wrap table,
+  .table-wrap tbody,
+  .table-wrap tr,
+  .table-wrap td { display: block; width: 100%; }
+
+  /* Los encabezados se ocultan visualmente (siguen disponibles para lectores de pantalla) */
+  .table-wrap thead {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
-  .topbar-inner {
-    flex-direction: column;
-    align-items: stretch;
+  .table-wrap tbody tr {
+    background: #FFFFFF;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 4px 0;
+    margin-bottom: 12px;
+  }
+  .table-wrap tbody tr:hover td { background: transparent; }
+
+  .table-wrap tbody tr td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 14px;
-    padding: 14px var(--layout-padding-x);
+    padding: 10px 16px;
+    text-align: right;
+    border-bottom: 1px dashed #EFE4D8;
+    min-width: 0;
   }
+  .table-wrap tbody tr td:last-child { border-bottom: none; }
 
-  .nav-tabs {
-    overflow-x: auto;
-    width: 100%;
-    padding: 4px;
+  /* Etiqueta de cada dato (reemplaza al encabezado de la columna) */
+  .table-wrap td::before {
+    flex: 0 0 38%;
+    max-width: 38%;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
   }
+  #view-categories td:nth-child(1)::before { content: "Orden"; }
+  #view-categories td:nth-child(2)::before { content: "Nombre"; }
+  #view-categories td:nth-child(3)::before { content: "Estado"; }
 
-  .nav-tab {
-    padding: 8px 14px;
-    font-size: 13.5px;
-  }
+  #view-products td:nth-child(1)::before { content: "Foto"; }
+  #view-products td:nth-child(2)::before { content: "Nombre"; }
+  #view-products td:nth-child(3)::before { content: "Categoría"; }
+  #view-products td:nth-child(4)::before { content: "Precio"; }
+  #view-products td:nth-child(5)::before { content: "Stock"; }
+  #view-products td:nth-child(6)::before { content: "Estado"; }
 
-  .main-content, main {
-    padding: 20px var(--layout-padding-x) 40px;
-  }
+  #view-addons td:nth-child(1)::before { content: "Nombre"; }
+  #view-addons td:nth-child(2)::before { content: "Categorías"; }
+  #view-addons td:nth-child(3)::before { content: "Precio"; }
+  #view-addons td:nth-child(4)::before { content: "Stock"; }
+  #view-addons td:nth-child(5)::before { content: "Estado"; }
 
-  .card {
-    padding: 20px 16px;
-  }
+  #view-ingredients td:nth-child(1)::before { content: "Ingrediente"; }
+  #view-ingredients td:nth-child(2)::before { content: "Stock"; }
+  #view-ingredients td:nth-child(3)::before { content: "Reposición"; }
 
-  .form-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  /* Fila "no hay registros" */
+  .table-wrap td.empty-state { display: block; text-align: center !important; }
+  .table-wrap td.empty-state::before { content: none !important; }
 
-  .actions {
-    flex-direction: column;
+  /* Botones Editar / Borrar al pie de cada tarjeta */
+  .table-wrap tbody tr td.actions {
+    flex-direction: row;
+    justify-content: stretch;
+    gap: 10px;
+    padding: 12px 16px 8px;
   }
+  .table-wrap td.actions::before { content: none !important; }
+  .table-wrap td.actions .btn-sm,
+  .table-wrap td.actions button { flex: 1; }
+
+  /* Controles dentro de la tarjeta */
+  .table-wrap td .refill { flex: 1 1 auto; justify-content: flex-end; }
+  .table-wrap td .refill input { flex: 1 1 100%; }
+  .table-wrap td .stock-ctl { margin-left: auto; }
+  .table-wrap td .badge { white-space: normal; text-align: right; }
+}
+
+/* ---------- Celulares (≤ 480px) ---------- */
+@media (max-width: 480px) {
+  :root { --layout-padding-x: 12px; }
+
+  .brand { gap: 10px; }
+  .brand-badge { width: 40px; height: 40px; }
+  .brand-badge svg { width: 22px; height: 22px; }
+  .brand-name { font-size: 17px; }
+  .brand-tag { font-size: 11px; }
+  .logout-btn { padding: 9px 12px; font-size: 13px; }
+
+  .nav-tabs { padding: 4px; gap: 4px; }
+  .nav-tab { padding: 9px 12px; font-size: 13px; gap: 7px; }
+  .nav-tab svg { width: 16px; height: 16px; }
+
+  h2 { font-size: 20px; }
+  h2::before { height: 20px; }
+  .card { padding: 16px 14px; }
+  .table-wrap tbody tr td { padding: 9px 14px; }
+  .table-wrap td::before { flex-basis: 34%; max-width: 34%; }
+}
+
+/* ---------- Celulares muy pequeños (≤ 360px) ---------- */
+@media (max-width: 360px) {
+  .brand-info { display: none; }
+  .logout-btn span { display: none; }
+  .logout-btn { padding: 10px 12px; }
+  .nav-tab svg { display: none; }
+  .brand-title { font-size: 22px; }
+  .login-card { padding: 22px 16px; }
+}
+
+/* ---------- Celular en horizontal (poca altura) ---------- */
+@media (max-height: 520px) and (orientation: landscape) {
+  .topbar { position: static; }
+  .login-wrapper { align-items: flex-start; }
+}
+
+/* ---------- Pantallas táctiles: sin efectos "hover" pegajosos ---------- */
+@media (hover: none) {
+  .btn:hover, .btn-outline:hover, .btn-danger:hover,
+  .nav-tab:hover, .logout-btn:hover, .thumb:hover { transform: none; }
 }
