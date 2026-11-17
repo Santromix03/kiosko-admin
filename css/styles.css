@@ -1051,7 +1051,10 @@ img { max-width: 100%; }
   .table-wrap td { display: block; width: 100%; }
 
   /* Los encabezados se ocultan visualmente (siguen disponibles para lectores de pantalla) */
+  .table-wrap { position: relative; }
   .table-wrap thead {
+    left: 0;
+    top: 0;
     position: absolute;
     width: 1px; height: 1px;
     overflow: hidden;
@@ -1112,6 +1115,22 @@ img { max-width: 100%; }
   #view-ingredients td:nth-child(1)::before { content: "Ingrediente"; }
   #view-ingredients td:nth-child(2)::before { content: "Stock"; }
   #view-ingredients td:nth-child(3)::before { content: "Reposición"; }
+
+  #view-roles .employees-table td:nth-child(1)::before { content: "Empleado"; }
+  #view-roles .employees-table td:nth-child(2)::before { content: "Correo"; }
+  #view-roles .employees-table td:nth-child(3)::before { content: "Estado"; }
+  #view-roles .employees-table td:nth-child(4)::before { content: "Turno"; }
+
+  #view-roles .shifts-table td:nth-child(1)::before { content: "Empleado"; }
+  #view-roles .shifts-table td:nth-child(2)::before { content: "Entrada"; }
+  #view-roles .shifts-table td:nth-child(3)::before { content: "Salida"; }
+  #view-roles .shifts-table td:nth-child(4)::before { content: "Duración"; }
+  #view-roles .shifts-table td:nth-child(5)::before { content: "Pedidos"; }
+  #view-roles .shifts-table td:nth-child(6)::before { content: "Ventas"; }
+
+  #view-myshift .myshift-table td:nth-child(1)::before { content: "Ticket"; }
+  #view-myshift .myshift-table td:nth-child(2)::before { content: "Hora"; }
+  #view-myshift .myshift-table td:nth-child(3)::before { content: "Total"; }
 
   /* Fila "no hay registros" */
   .table-wrap td.empty-state { display: block; text-align: center !important; }
@@ -1793,4 +1812,175 @@ tr.is-selected td:first-child {
   .timeline-dot {
     left: -21px;
   }
+}
+
+/* =====================================================================
+   ROLES Y TURNOS
+   ===================================================================== */
+.section-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  margin: 8px 0 12px;
+}
+
+.field-hint {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+input[readonly] {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #16A34A;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55);
+  animation: livePulse 1.8s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.shift-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 14px;
+}
+
+.shift-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #FAF7F2;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.shift-card-top,
+.myshift-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #B91C1C 0%, #881337 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.avatar-lg {
+  width: 58px;
+  height: 58px;
+  font-size: 20px;
+}
+
+.shift-name {
+  font-weight: 700;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.shift-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shift-meta .live-dot {
+  margin-right: 7px;
+  vertical-align: middle;
+}
+
+.shift-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.shift-stats strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.shift-stats span {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.myshift-card {
+  max-width: 760px;
+  margin: 0 auto 28px;
+}
+
+.myshift-head {
+  margin-bottom: 22px;
+}
+
+.myshift-head .card-title {
+  font-size: 22px;
+}
+
+#view-roles .badge { margin-left: 6px; }
+#view-roles .badge:first-child { margin-left: 0; }
+
+.myshift-card .table-wrap {
+  box-shadow: none;
+}
+
+/* Filtro de fechas y empleado: los campos se encogen en vez de desbordarse */
+.range-form select {
+  padding: 9px 11px;
+  font-size: 14px;
+}
+
+#view-roles .range-form label { min-width: 0; max-width: 100%; }
+#view-roles .range-form input { flex: 0 1 150px; width: auto; min-width: 0; }
+#view-roles .range-form select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+
+@media (max-width: 768px) {
+  #view-roles .range-form label { flex: 1 1 100%; }
+  #view-roles .range-form input,
+  #view-roles .range-form select { flex: 1 1 auto; width: auto; }
+}
+
+/* Correos y nombres largos se parten en vez de ensanchar la tarjeta */
+@media (max-width: 950px) {
+  #view-roles .table-wrap td,
+  #view-myshift .table-wrap td { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 768px) {
+  .myshift-card { margin-bottom: 20px; }
+  .myshift-head .card-title { font-size: 19px; }
+  .avatar-lg { width: 50px; height: 50px; font-size: 18px; }
+  .shift-stats { gap: 22px; }
 }

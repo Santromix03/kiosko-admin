@@ -25,7 +25,6 @@ let historyReq = 0;
 let historyState = emptyHistoryState();
 
 const unitShort = u => (u === 'unidad' ? 'und' : u);
-const fmt = n => Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 
 function emptyHistoryState() {
   return { rows: null, loading: false, error: null, from: '', to: '', status: 'all' };
@@ -124,7 +123,7 @@ function render() {
                 </td>
                 <td>
                   <span class="stock-val ${!archived && Number(x.stock) === 0 ? 'out' : ''}" data-stock="${x.id}">
-                    ${fmt(x.stock)} ${unitShort(x.unit)}
+                    ${fmtQty(x.stock)} ${unitShort(x.unit)}
                   </span>
                 </td>
                 <td>
@@ -436,13 +435,25 @@ root.addEventListener('submit', async e => {
     return toast('Ya existe un ingrediente con ese nombre', true);
   }
 
-  const row = { name, unit, stock };
   busy = true;
   let error;
   if (editingId) {
-    ({ error } = await supabase.from('ingredients').update(row).eq('id', editingId));
+    // El stock solo se envía si el administrador lo cambió, y solo si nadie lo movió
+    // mientras tanto (ventas o ajustes): así no se pisa el stock real con uno viejo.
+    const stockChanged = stock !== Number(current.stock);
+    let query = supabase.from('ingredients')
+      .update(stockChanged ? { name, stock } : { name })
+      .eq('id', editingId);
+    if (stockChanged) query = query.eq('stock', current.stock);
+    const res = await query.select('id');
+    error = res.error;
+    if (!error && !res.data?.length) {
+      error = { message: stockChanged
+        ? 'El stock cambió mientras editabas (hubo ventas o ajustes). Recarga la pestaña e inténtalo de nuevo.'
+        : 'No se pudo actualizar el ingrediente.' };
+    }
   } else {
-    ({ error } = await supabase.from('ingredients').insert(row));
+    ({ error } = await supabase.from('ingredients').insert({ name, unit, stock }));
   }
   busy = false;
 
@@ -510,7 +521,7 @@ root.addEventListener('click', async e => {
     item.stock = data;
     const cell = root.querySelector(`[data-stock="${id}"]`);
     if (cell) {
-      cell.textContent = `${fmt(data)} ${unitShort(item.unit)}`;
+      cell.textContent = `${fmtQty(data)} ${unitShort(item.unit)}`;
       cell.classList.toggle('out', Number(data) === 0);
     }
     input.value = '';

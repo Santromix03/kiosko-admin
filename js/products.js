@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { IMAGES_BUCKET } from './config.js';
-import { esc, formatPrice, toast } from './utils.js';
+import { esc, formatPrice, toast, friendlyDbError } from './utils.js';
 import {
   isHistoryReady,
   isArchived,
@@ -430,6 +430,7 @@ function render() {
         ${p?.image_url ? `<div style="margin: 6px 0;"><img class="thumb" style="width: 80px; height: 80px;" src="${esc(p.image_url)}" alt=""></div>` : ''}
         <input name="image" type="file" accept="image/*">
       </label>
+      ${p?.image_url ? '<label class="check wide"><input name="remove_image" type="checkbox"> Quitar la foto actual (sin subir otra)</label>' : ''}
 
       <fieldset class="checks-group wide">
         <legend>Control y método de inventario (Stock)</legend>
@@ -477,6 +478,7 @@ function render() {
               <td><span class="badge ${x.available ? 'badge-success' : 'badge-neutral'}">${x.available ? '● Visible' : '○ Oculto'}</span></td>
               <td class="actions">
                 <button class="btn-outline btn-sm" data-action="edit" data-id="${x.id}">Editar</button>
+                <button class="btn-outline btn-sm" data-action="toggle-available" data-id="${x.id}">${x.available ? 'Ocultar' : 'Mostrar'}</button>
                 <button class="btn-danger btn-sm" data-action="delete" data-id="${x.id}">Borrar</button>
               </td>
             </tr>`).join('')}
@@ -530,12 +532,21 @@ async function removeImage(url) {
 }
 
 async function legacySyncRecipe(productId, recipeRows) {
+  const previous = recipes.get(productId) ?? [];
   const del = await supabase.from('recipe_items').delete().eq('product_id', productId);
   if (del.error) throw del.error;
   if (recipeRows.length) {
     const ins = await supabase.from('recipe_items')
       .insert(recipeRows.map(r => ({ ...r, product_id: productId })));
-    if (ins.error) throw ins.error;
+    if (ins.error) {
+      // Se borró la receta vieja pero no se pudo guardar la nueva: se restaura la anterior.
+      if (previous.length) {
+        await supabase.from('recipe_items').insert(previous.map(r => ({
+          product_id: productId, ingredient_id: r.ingredient_id, quantity: r.quantity,
+        })));
+      }
+      throw ins.error;
+    }
   }
 }
 
@@ -602,11 +613,18 @@ root.addEventListener('submit', async e => {
   const form = e.target;
   const f = new FormData(form);
   const submitBtn = form.querySelector('button[type=submit]');
+  if (submitBtn.disabled) return;
   submitBtn.disabled = true;
+
+  let uploadedUrl = null;   // foto nueva subida en esta operación
+  let createdId = null;     // producto creado en esta operación
+  let updated = false;
+  let saved = false;
 
   try {
     const current = items.find(x => x.id === editingId);
     const mode = f.get('stock_mode');
+    const newStock = parseInt(f.get('stock'), 10) || 0;
     const row = {
       category_id: Number(f.get('category_id')),
       name: f.get('name').trim(),
@@ -615,8 +633,22 @@ root.addEventListener('submit', async e => {
       sort_order: parseInt(f.get('sort_order'), 10) || 0,
       available: f.get('available') === 'on',
       stock_mode: mode,
-      stock: mode === 'direct' ? (parseInt(f.get('stock'), 10) || 0) : 0,
+      stock: mode === 'direct' ? newStock : 0,
     };
+    if (!row.name) throw new Error('Escribe el nombre del producto');
+    if (!Number.isFinite(row.price) || row.price < 0) throw new Error('Escribe un precio válido');
+
+    // Stock: al editar, solo se envía si el administrador lo cambió, y solo si nadie lo
+    // movió mientras tanto (ventas): así no se pisa el stock real con uno viejo.
+    let stockGuard = null;
+    if (current) {
+      if (mode === 'direct' && current.stock_mode === 'direct') {
+        if (newStock === Number(current.stock)) delete row.stock;
+        else stockGuard = current.stock;
+      } else if (mode !== 'direct' && current.stock_mode !== 'direct') {
+        delete row.stock;
+      }
+    }
 
     // Receta: se valida ANTES de subir la foto o guardar nada
     let recipeRows = [];
@@ -631,26 +663,56 @@ root.addEventListener('submit', async e => {
 
     const file = f.get('image');
     const hasNewImage = file && file.size > 0;
-    if (hasNewImage) row.image_url = await uploadImage(file);
+    const dropImage = !!current?.image_url && !hasNewImage && f.get('remove_image') === 'on';
+    if (hasNewImage) {
+      uploadedUrl = await uploadImage(file);
+      row.image_url = uploadedUrl;
+    } else if (dropImage) {
+      row.image_url = null;
+    }
 
     let productId = editingId;
-    if (editingId) {
-      const { error } = await supabase.from('products').update(row).eq('id', editingId);
+    if (current) {
+      let query = supabase.from('products').update(row).eq('id', editingId);
+      if (stockGuard !== null) query = query.eq('stock', stockGuard);
+      const { data, error } = await query.select('id');
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error(stockGuard !== null
+          ? 'El stock cambió mientras editabas (hubo ventas). Recarga la pestaña e inténtalo de nuevo.'
+          : 'No se pudo actualizar el producto.');
+      }
+      updated = true;
     } else {
       const { data, error } = await supabase.from('products').insert(row).select('id').single();
       if (error) throw error;
       productId = data.id;
+      createdId = data.id;
     }
 
-    await syncRecipe(productId, recipeRows);
+    try {
+      await syncRecipe(productId, recipeRows);
+    } catch (err) {
+      // Si la receta no se pudo guardar, se deshace lo anterior para no dejar el producto a medias.
+      if (createdId) {
+        await supabase.from('products').delete().eq('id', createdId);
+      } else if (updated) {
+        const previous = Object.fromEntries(Object.keys(row).map(k => [k, current[k] ?? null]));
+        await supabase.from('products').update(previous).eq('id', editingId);
+      }
+      throw err;
+    }
+    saved = true;
 
-    if (hasNewImage && current?.image_url) await removeImage(current.image_url);
-    toast(editingId ? 'Producto actualizado' : 'Producto creado');
+    if ((hasNewImage || dropImage) && current?.image_url) await removeImage(current.image_url);
+    toast(current ? 'Producto actualizado' : 'Producto creado');
     resetProductHistory();
     await load();
   } catch (err) {
-    toast(err.message, true);
+    if (uploadedUrl && !saved) {
+      try { await removeImage(uploadedUrl); } catch { /* la foto huérfana no es crítica */ }
+    }
+    toast(friendlyDbError(err), true);
   } finally {
     submitBtn.disabled = false;
   }
@@ -679,12 +741,20 @@ root.addEventListener('click', async e => {
     editingId = null;
     resetProductHistory();
     render();
+  } else if (action === 'toggle-available') {
+    const id = Number(btn.dataset.id);
+    const p = items.find(x => x.id === id);
+    if (!p) return;
+    const { error } = await supabase.from('products').update({ available: !p.available }).eq('id', id);
+    if (error) return toast(friendlyDbError(error), true);
+    toast(p.available ? 'Producto oculto del menú' : 'Producto visible en el menú');
+    load();
   } else if (action === 'delete') {
     const id = Number(btn.dataset.id);
     const p = items.find(x => x.id === id);
     if (!confirm(`¿Borrar "${p?.name}"?`)) return;
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) return toast(error.message, true);
+    if (error) return toast(friendlyDbError(error, 'Mejor ocúltalo con el botón «Ocultar».'), true);
     if (p?.image_url) await removeImage(p.image_url);
     toast('Producto borrado');
     load();

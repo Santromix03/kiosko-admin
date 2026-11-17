@@ -1,10 +1,13 @@
 import { supabase } from './supabase.js';
 import { esc, formatPrice, toast } from './utils.js';
 import { downloadSalesReport } from './report-pdf.js';
+import { HISTORY_TIMEZONE, todayIso } from './history.js';
 
 const root = document.getElementById('view-reports');
 const MAX_RANGE_DAYS = 90;
 const DEFAULT_RANGE_DAYS = 14;
+const DAYS_LIMIT = 730;   // máximo de días que se traen de la vista (Supabase corta en 1000 filas)
+const DAYS_PAGE = 30;     // días que se muestran en la tabla de historial por vez
 
 let days = [];            // filas de v_daily_sales
 let detail = null;        // resultado de get_daily_report
@@ -18,6 +21,7 @@ let loadReq = 0;
 let detailReq = 0;
 let rangeReq = 0;
 let generatingPdf = false;
+let daysShown = DAYS_PAGE;
 
 // ---------- Fechas / números ----------
 const pad = n => String(n).padStart(2, '0');
@@ -39,7 +43,7 @@ const fmtDayShort = iso => parseIso(iso).toLocaleDateString('es-CO', {
   day: 'numeric', month: 'short',
 });
 const fmtTime = iso => new Date(iso).toLocaleTimeString('es-CO', {
-  hour: '2-digit', minute: '2-digit', hour12: false,
+  timeZone: HISTORY_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false,
 });
 const fmtInt = n => Number(n ?? 0).toLocaleString('es-CO');
 const money = n => formatPrice(Number(n ?? 0));
@@ -73,10 +77,12 @@ export async function load() {
   detailError = null;
   range = [];
 
+  daysShown = DAYS_PAGE;
   const { data, error } = await supabase
     .from('v_daily_sales')
     .select('*')
-    .order('date', { ascending: false });
+    .order('date', { ascending: false })
+    .limit(DAYS_LIMIT);
 
   if (req !== loadReq) return;
   if (error) return toast(error.message, true);
@@ -168,20 +174,20 @@ async function downloadPdf(btn) {
   if (btn) btn.disabled = true;
 
   try {
+    // Solo se consultan los días del rango (no todo el historial)
     const [dailyRes, rangeRes] = await Promise.all([
-      supabase.from('v_daily_sales').select('*').order('date', { ascending: false }),
+      supabase.from('v_daily_sales').select('*').gte('date', from).lte('date', to),
       supabase.rpc('get_sales_range', { p_from: from, p_to: to }),
     ]);
     if (dailyRes.error) throw dailyRes.error;
     if (rangeRes.error) throw rangeRes.error;
 
-    days = dailyRes.data ?? [];
     rangeFrom = from;
     rangeTo = to;
     range = rangeRes.data ?? [];
     render();
 
-    const points = buildPoints(from, to, range);
+    const points = buildPoints(from, to, range, dailyRes.data ?? []);
     await downloadSalesReport({ from, to, points });
     toast('PDF descargado');
   } catch (err) {
@@ -193,9 +199,9 @@ async function downloadPdf(btn) {
 }
 
 // ---------- Vistas ----------
-function buildPoints(from, to, rows) {
+function buildPoints(from, to, rows, dayRows = days) {
   const byDate = new Map(rows.map(r => [r.date, r]));
-  const dayByDate = new Map(days.map(d => [d.date, d]));
+  const dayByDate = new Map(dayRows.map(d => [d.date, d]));
   const points = [];
   const limit = parseIso(to).getTime();
   const total = rangeLength(from, to);
@@ -472,7 +478,7 @@ function historyHtml() {
           </tr>
         </thead>
         <tbody>
-          ${days.map(d => `
+          ${days.slice(0, daysShown).map(d => `
             <tr class="${d.date === selectedDate ? 'is-selected' : ''}">
               <td>
                 <strong>${esc(fmtDayShort(d.date))}</strong>
@@ -491,7 +497,11 @@ function historyHtml() {
             </tr>`).join('')}
         </tbody>
       </table>
-    </div>`;
+    </div>
+    ${days.length > daysShown ? `
+      <div style="text-align: center; margin: 12px 0;">
+        <button type="button" class="btn-outline btn-sm" data-action="more-days">Mostrar más días (${days.length - daysShown} restantes)</button>
+      </div>` : ''}`;
 }
 
 function render() {
@@ -540,9 +550,12 @@ root.addEventListener('click', e => {
     openDay(selectedDate);
   } else if (action === 'download-pdf') {
     downloadPdf(btn);
+  } else if (action === 'more-days') {
+    daysShown += DAYS_PAGE;
+    render();
   } else if (action === 'quick-range') {
     const length = Number(btn.dataset.days);
-    const end = days[0]?.date ?? toIso(new Date());
+    const end = todayIso();   // «Últimos N días» cuenta hacia atrás desde HOY (hora de Bogotá)
     const from = toIso(addDays(parseIso(end), -(length - 1)));
     applyRange(from, end);
   }

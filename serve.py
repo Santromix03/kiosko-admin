@@ -9,4 +9,4 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
 
 print("Servidor en http://localhost:5500  (Ctrl+C para detener)")
-ThreadingHTTPServer(("", 5500), NoCacheHandler).serve_forever()
+ThreadingHTTPServer(("127.0.0.1", 5500), NoCacheHandler).serve_forever()

@@ -21,3 +21,13 @@ export function toast(message, isError = false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 3500);
 }
+
+// Traduce errores típicos de la base de datos a mensajes entendibles.
+export function friendlyDbError(error, hint = '') {
+  if (!error) return '';
+  if (error.code === '23503') {
+    return 'No se puede borrar porque tiene datos asociados (por ejemplo ventas o pedidos).' + (hint ? ' ' + hint : '');
+  }
+  if (error.code === '42501') return 'No tienes permiso para hacer esto.';
+  return error.message;
+}

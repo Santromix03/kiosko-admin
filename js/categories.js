@@ -1,9 +1,10 @@
 import { supabase } from './supabase.js';
-import { esc, toast } from './utils.js';
+import { esc, toast, friendlyDbError } from './utils.js';
 
 const root = document.getElementById('view-categories');
 let items = [];
 let editingId = null;
+let busy = false;
 
 export async function load() {
   editingId = null;
@@ -52,17 +53,26 @@ function render() {
 root.addEventListener('submit', async e => {
   if (e.target.id !== 'cat-form') return;
   e.preventDefault();
+  if (busy) return;
   const f = new FormData(e.target);
   const row = {
     name: f.get('name').trim(),
     sort_order: parseInt(f.get('sort_order'), 10) || 0,
     active: f.get('active') === 'on',
   };
-  const { error } = editingId
+  if (!row.name) return toast('Escribe el nombre de la categoría', true);
+
+  busy = true;
+  const submit = e.target.querySelector('button[type="submit"]');
+  if (submit) submit.disabled = true;
+  const wasEditing = !!editingId;
+  const { error } = wasEditing
     ? await supabase.from('categories').update(row).eq('id', editingId)
     : await supabase.from('categories').insert(row);
-  if (error) return toast(error.message, true);
-  toast(editingId ? 'Categoría actualizada' : 'Categoría creada');
+  busy = false;
+  if (submit) submit.disabled = false;
+  if (error) return toast(friendlyDbError(error), true);
+  toast(wasEditing ? 'Categoría actualizada' : 'Categoría creada');
   load();
 });
 
@@ -78,10 +88,22 @@ root.addEventListener('click', async e => {
     editingId = null;
     render();
   } else if (btn.dataset.action === 'delete') {
-    // Ojo: en la base de datos, borrar una categoría borra también sus productos (ON DELETE CASCADE)
-    if (!confirm('¿Borrar esta categoría? También se borrarán TODOS sus productos.')) return;
+    // En la base, borrar una categoría borra también sus productos (ON DELETE CASCADE).
+    // Para no perder productos (ni su historial de ventas) por accidente, solo se
+    // permite borrar categorías vacías. Si tiene productos, se puede ocultar.
+    if (busy) return;
+    busy = true;
+    const { count, error: countError } = await supabase.from('products')
+      .select('id', { count: 'exact', head: true }).eq('category_id', id);
+    if (countError) { busy = false; return toast(countError.message, true); }
+    if (count > 0) {
+      busy = false;
+      return toast(`Esta categoría tiene ${count} producto(s). Muévelos o bórralos primero, o edítala y desmarca «Visible en el kiosko» para ocultarla.`, true);
+    }
+    if (!confirm('¿Borrar esta categoría vacía?')) { busy = false; return; }
     const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (error) return toast(error.message, true);
+    busy = false;
+    if (error) return toast(friendlyDbError(error), true);
     toast('Categoría borrada');
     load();
   }

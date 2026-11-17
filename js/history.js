@@ -21,10 +21,6 @@ export function isHistoryReady() {
   return readyPromise;
 }
 
-export function resetHistoryReady() {
-  readyPromise = null;
-}
-
 export const isArchived = row => !!row?.archived_at;
 
 export function isMissingFunction(error) {
@@ -47,18 +43,6 @@ export function fmtDateTime(value, fallback = 'Actualmente') {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  });
-}
-
-export function fmtDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('es-CO', {
-    timeZone: HISTORY_TIMEZONE,
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
   });
 }
 

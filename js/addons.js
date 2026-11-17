@@ -1,11 +1,12 @@
 import { supabase } from './supabase.js';
-import { esc, formatPrice, toast } from './utils.js';
+import { esc, formatPrice, toast, friendlyDbError } from './utils.js';
 
 const root = document.getElementById('view-addons');
 let items = [];
 let categories = [];
 let links = new Map();      // addon_id -> Set de category_id
 let editingId = null;
+let busy = false;
 
 export async function load() {
   editingId = null;
@@ -95,12 +96,13 @@ function render() {
 }
 
 function showError(error) {
-  toast(error.code === '23505' ? 'Ya existe una adición con ese nombre' : error.message, true);
+  toast(error.code === '23505' ? 'Ya existe una adición con ese nombre' : friendlyDbError(error), true);
 }
 
 root.addEventListener('submit', async e => {
   if (e.target.id !== 'addon-form') return;
   e.preventDefault();
+  if (busy) return;
   const f = new FormData(e.target);
 
   const categoryIds = f.getAll('categories').map(Number);
@@ -108,31 +110,72 @@ root.addEventListener('submit', async e => {
     return toast('Elige al menos una categoría para esta adición', true);
   }
 
+  const current = items.find(x => x.id === editingId);
+  const newStock = parseInt(f.get('stock'), 10) || 0;
   const row = {
     name: f.get('name').trim(),
     price: parseInt(f.get('price'), 10),
-    stock: parseInt(f.get('stock'), 10) || 0,
     active: f.get('active') === 'on',
   };
+  if (!row.name) return toast('Escribe el nombre de la adición', true);
 
-  let addonId = editingId;
-  if (editingId) {
-    const { error } = await supabase.from('addons').update(row).eq('id', editingId);
-    if (error) return showError(error);
-  } else {
-    const { data, error } = await supabase.from('addons').insert(row).select('id').single();
-    if (error) return showError(error);
-    addonId = data.id;
+  busy = true;
+  const submit = e.target.querySelector('button[type="submit"]');
+  if (submit) submit.disabled = true;
+  const wasEditing = !!current;
+
+  try {
+    let addonId = editingId;
+    if (current) {
+      // El stock solo se envía si el administrador lo cambió, y solo si nadie lo movió
+      // mientras tanto (ventas o ajustes): así no se pisa el stock real con uno viejo.
+      const stockChanged = newStock !== current.stock;
+      let query = supabase.from('addons')
+        .update(stockChanged ? { ...row, stock: newStock } : row)
+        .eq('id', editingId);
+      if (stockChanged) query = query.eq('stock', current.stock);
+      const { data, error } = await query.select('id');
+      if (error) throw error;
+      if (!data?.length) {
+        throw new Error(stockChanged
+          ? 'El stock cambió mientras editabas (hubo ventas o ajustes). Recarga la pestaña e inténtalo de nuevo.'
+          : 'No se pudo actualizar la adición.');
+      }
+    } else {
+      const { data, error } = await supabase.from('addons')
+        .insert({ ...row, stock: newStock }).select('id').single();
+      if (error) throw error;
+      addonId = data.id;
+    }
+
+    // Categorías: primero se agregan las nuevas y luego se quitan las sobrantes,
+    // así un fallo nunca deja la adición sin categorías.
+    const existing = links.get(addonId) ?? new Set();
+    const toAdd = categoryIds.filter(id => !existing.has(id));
+    const toRemove = [...existing].filter(id => !categoryIds.includes(id));
+
+    if (toAdd.length) {
+      const ins = await supabase.from('addon_categories')
+        .insert(toAdd.map(category_id => ({ addon_id: addonId, category_id })));
+      if (ins.error) {
+        if (!wasEditing) await supabase.from('addons').delete().eq('id', addonId); // deshacer
+        throw ins.error;
+      }
+    }
+    if (toRemove.length) {
+      const del = await supabase.from('addon_categories')
+        .delete().eq('addon_id', addonId).in('category_id', toRemove);
+      if (del.error) throw del.error;
+    }
+
+    toast(wasEditing ? 'Adición actualizada' : 'Adición creada');
+    load();
+  } catch (err) {
+    showError(err);
+  } finally {
+    busy = false;
+    if (submit) submit.disabled = false;
   }
-
-  const del = await supabase.from('addon_categories').delete().eq('addon_id', addonId);
-  if (del.error) return toast(del.error.message, true);
-  const ins = await supabase.from('addon_categories')
-    .insert(categoryIds.map(category_id => ({ addon_id: addonId, category_id })));
-  if (ins.error) return toast(ins.error.message, true);
-
-  toast(editingId ? 'Adición actualizada' : 'Adición creada');
-  load();
 });
 
 root.addEventListener('click', async e => {
@@ -163,7 +206,7 @@ root.addEventListener('click', async e => {
     const a = items.find(x => x.id === id);
     if (!confirm(`¿Borrar la adición "${a?.name}"?`)) return;
     const { error } = await supabase.from('addons').delete().eq('id', id);
-    if (error) return toast(error.message, true);
+    if (error) return toast(friendlyDbError(error, 'Mejor ocúltala: edítala y desmarca «Visible en kiosko».'), true);
     toast('Adición borrada');
     load();
   }
