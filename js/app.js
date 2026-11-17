@@ -3,8 +3,9 @@ import * as categories from './categories.js';
 import * as products from './products.js';
 import * as addons from './addons.js';
 import * as ingredients from './ingredients.js';
+import * as reports from './reports.js';
 
-const views = { categories, products, ingredients, addons };
+const views = { categories, products, ingredients, addons, reports };
 
 const loginView = document.getElementById('login-view');
 const appView = document.getElementById('app-view');
